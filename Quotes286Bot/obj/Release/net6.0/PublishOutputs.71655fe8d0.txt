@@ -1,0 +1,9 @@
+C:\Users\Victoria\source\repos\op\Quotes286Bot\Quotes286Bot\obj\Release\net6.0\PubTmp\Out\Quotes286Bot.exe
+C:\Users\Victoria\source\repos\op\Quotes286Bot\Quotes286Bot\obj\Release\net6.0\PubTmp\Out\appsettings.Development.json
+C:\Users\Victoria\source\repos\op\Quotes286Bot\Quotes286Bot\obj\Release\net6.0\PubTmp\Out\appsettings.json
+C:\Users\Victoria\source\repos\op\Quotes286Bot\Quotes286Bot\obj\Release\net6.0\PubTmp\Out\Quotes286Bot.dll
+C:\Users\Victoria\source\repos\op\Quotes286Bot\Quotes286Bot\obj\Release\net6.0\PubTmp\Out\Quotes286Bot.deps.json
+C:\Users\Victoria\source\repos\op\Quotes286Bot\Quotes286Bot\obj\Release\net6.0\PubTmp\Out\Quotes286Bot.runtimeconfig.json
+C:\Users\Victoria\source\repos\op\Quotes286Bot\Quotes286Bot\obj\Release\net6.0\PubTmp\Out\Quotes286Bot.pdb
+C:\Users\Victoria\source\repos\op\Quotes286Bot\Quotes286Bot\obj\Release\net6.0\PubTmp\Out\Newtonsoft.Json.dll
+C:\Users\Victoria\source\repos\op\Quotes286Bot\Quotes286Bot\obj\Release\net6.0\PubTmp\Out\Telegram.Bot.dll
