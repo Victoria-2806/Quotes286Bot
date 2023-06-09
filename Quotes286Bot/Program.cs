@@ -2,6 +2,7 @@ using Quotes286Bot;
 
 QuotesBot bot = new QuotesBot();
 bot.Start();
+//Console.ReadKey();
 
 var builder = WebApplication.CreateBuilder(args);
 

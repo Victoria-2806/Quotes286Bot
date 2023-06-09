@@ -21,7 +21,7 @@
     },
     "resourceName": {
       "type": "string",
-      "defaultValue": "Quotes286Bot20230604194628",
+      "defaultValue": "Quotes286Bot20230607190132",
       "metadata": {
         "description": "Name of the main resource to be created by this template."
       }

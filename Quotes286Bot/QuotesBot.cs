@@ -1,5 +1,4 @@
-﻿using Quotes286Bot.Client;
-using Quotes286Bot.Clients;
+﻿using Newtonsoft.Json;
 using Quotes286Bot.Models;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
@@ -12,7 +11,8 @@ namespace Quotes286Bot
 {
     public class QuotesBot
     {
-        TelegramBotClient botClient = new TelegramBotClient("6072763079:AAGaw0_pzHVGNWIOxcd3986e3u3SHyvQ_N0");
+        TelegramBotClient botClient = new TelegramBotClient("6009442655:AAF3TgE0OJHqMahakoU3263wpbK-3R8bYDA");
+        //TelegramBotClient botClient = new TelegramBotClient("5849544258:AAH-9Y3Dvq6ZBK5xFDck_3wwHkpXIfo0g-U");
         CancellationToken cancellationToken = new CancellationToken();
         ReceiverOptions receiverOptions = new ReceiverOptions { AllowedUpdates = { } };
         private Dictionary<long, bool> isFindingQuotes = new Dictionary<long, bool>();
@@ -102,6 +102,7 @@ namespace Quotes286Bot
                     await botClient.EditMessageReplyMarkupAsync(chatId, messageId, replyMarkup: keyboard);
                 }
             }
+
             else if (update.Type == UpdateType.CallbackQuery && (update?.CallbackQuery?.Data == "next_page_1" || update?.CallbackQuery?.Data == "previous_page_1"))
             {
                 var chatId = update.CallbackQuery.Message.Chat.Id;
@@ -148,81 +149,138 @@ namespace Quotes286Bot
 
                     "/random - get a random quote\n" +
                     "/randomlist - get a list of random quotes\n" +
+                    "/randomlist (number) - get desired number of random quotes (limit 25)\n" +
                     "/findquotes - find quotes by author\n" +
                     "/favorite - open list of favorite quotes");
                 return;
             }
+
             else if (message.Text == "/random")
             {
-                QuotesClientQuotable quotesClient = new QuotesClientQuotable();
-                var result = await quotesClient.GetRandomQuoteAsync();
-
-                string quoteText = $"{result.Content}. \n© {result.Author}";
-
-                // Add the "Add to Favorites" button
-                var keyboard = new InlineKeyboardMarkup(new[]
+                var client = new HttpClient();
+                var request = new HttpRequestMessage
                 {
-                    new[]
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri("https://quotesapi20230603234422.azurewebsites.net/QuoteControllerQuotable/random")
+                };
+                using (var response = await client.SendAsync(request))
+                {
+                    response.EnsureSuccessStatusCode();
+                    var content = await response.Content.ReadAsStringAsync();
+                    var result = JsonConvert.DeserializeObject<QuoteQuotable>(content);
+
+                    string quoteText = $"{result.Content}. \n© {result.Author}";
+
+                    // Add the "Add to Favorites" button
+                    var keyboard = new InlineKeyboardMarkup(new[]
                     {
-                        InlineKeyboardButton.WithCallbackData("♥ Add to Favorites", "add_to_favorites")
+                        new[]
+                        {
+                            InlineKeyboardButton.WithCallbackData("♥ Add to Favorites", "add_to_favorites")
+                        }
+                    });
+
+                    await botClient.SendTextMessageAsync(message.Chat.Id, quoteText, replyMarkup: keyboard);
+                }
+                return;
+            }
+
+            else if (message.Text.StartsWith("/randomlist"))
+            {
+                string[] input = message.Text.Split(' ');
+                int count = 5; // Значення за замовчуванням
+
+                if (input.Length > 1 && int.TryParse(input[1], out int inputCount))
+                {
+                    count = inputCount;
+                }
+
+                var client = new HttpClient();
+                var request = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri("https://quotesapi20230603234422.azurewebsites.net/QuoteControllerFavqs/quotes")
+                };
+                using (var response = await client.SendAsync(request))
+                {
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string jsonResponse = await response.Content.ReadAsStringAsync();
+                        var result = JsonConvert.DeserializeObject<List<QuoteFavqs>>(jsonResponse);
+                        var quotes = result.Take(count).ToList();
+
+                        foreach (var quote in quotes)
+                        {
+                            string quoteText = $"{quote.Body}. \n© {quote.Author}";
+
+                            // Create inline keyboard markup with the "Add to favorite" button
+                            var inlineKeyboard = new InlineKeyboardMarkup(new[]
+                            {
+                    new []
+                    {
+                        InlineKeyboardButton.WithCallbackData("♥ Add to favorite", $"add_to_favorites")
                     }
                 });
 
-                await botClient.SendTextMessageAsync(message.Chat.Id, quoteText, replyMarkup: keyboard);
-            }
-            else if (message.Text == "/randomlist")
-            {
-                QuotesClientFavqs quotesClient = new QuotesClientFavqs();
-                var allQuotes = await quotesClient.GetAllQuotes();
-
-                if (allQuotes.Count > 0)
-                {
-                    foreach (var quote in allQuotes)
+                            await botClient.SendTextMessageAsync(message.Chat.Id, quoteText, replyMarkup: inlineKeyboard);
+                        }
+                    }
+                    else
                     {
-                        string quoteText = $"{quote.Body}. \n© {quote.Author}";
-
-                        // Add the "Add to Favorites" button
-                        var keyboard = new InlineKeyboardMarkup(new[]
-                        {
-                            new[]
-                            {
-                                InlineKeyboardButton.WithCallbackData("♥ Add to Favorites", "add_to_favorites")
-                            }
-                        });
-
-                        await botClient.SendTextMessageAsync(message.Chat.Id, quoteText, replyMarkup: keyboard);
+                        Console.WriteLine($"Помилка запиту до API: {response.StatusCode}");
                     }
                 }
-                else
-                {
-                    await botClient.SendTextMessageAsync(message.Chat.Id, "The list of quotes is empty.");
-                }
+                return;
             }
+
+
             else if (message.Text == "/findquotes")
             {
                 isFindingQuotes[message.Chat.Id] = true;
-                await botClient.SendTextMessageAsync(message.Chat.Id, "Enter the full name of the author:");
+                await botClient.SendTextMessageAsync(message.Chat.Id, "Enter the FULL name of the author:");
                 return;
             }
             else if (isFindingQuotes.ContainsKey(message.Chat.Id) && isFindingQuotes[message.Chat.Id])
             {
-                string authorName = message.Text;
-                QuotesClientFavqs quotesClient = new QuotesClientFavqs();
-                quotesByAuthor[message.Chat.Id] = await quotesClient.GetQuotesByAuthor(authorName);
-
-                if (quotesByAuthor[message.Chat.Id].Count > 0)
-                {
-                    currentPage[message.Chat.Id] = 1;
-                    await SendQuotesByAuthor(message.Chat.Id, currentPage[message.Chat.Id]);
-                }
-                else
-                {
-                    await botClient.SendTextMessageAsync(message.Chat.Id, "No quotes found for the given author.");
-                }
-
                 isFindingQuotes[message.Chat.Id] = false;
+                var client = new HttpClient();
+                string authorName = message.Text; // Отримуємо authorName з повідомлення
+                authorName = Uri.EscapeDataString(authorName);
+                var request = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri($"https://quotesapi20230603234422.azurewebsites.net/QuoteControllerFavqs/quotes/{authorName}")
+                };
+                using (var response = await client.SendAsync(request))
+                {
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string jsonResponse = await response.Content.ReadAsStringAsync();
+                        var result = JsonConvert.DeserializeObject<List<QuoteFavqs>>(jsonResponse);
+                        List<QuoteFavqs> quotes = result.ToList();
+
+                        if (quotes.Count > 0)
+                        {
+                            quotesByAuthor[message.Chat.Id] = quotes;
+                            currentPage[message.Chat.Id] = 1;
+                            await SendQuotesByAuthor(message.Chat.Id, currentPage[message.Chat.Id]);
+                        }
+                        else
+                        {
+                            await botClient.SendTextMessageAsync(message.Chat.Id, "No quotes found for the given author.");
+                        }
+                    }
+                    else
+                    {
+                        //Console.WriteLine($"Помилка запиту до API: {response.StatusCode}");
+                        await botClient.SendTextMessageAsync(message.Chat.Id, "Error occurred while requesting the API.");
+                    }
+                }
+
                 return;
             }
+
+
             else if (message.Text == "/favorite")
             {
                 if (isFavoriteQuotes.ContainsKey(message.Chat.Id))
@@ -243,6 +301,7 @@ namespace Quotes286Bot
                     await botClient.SendTextMessageAsync(message.Chat.Id, "No favorite quotes found.");
                 }
             }
+
             else
             {
                 await botClient.SendTextMessageAsync(message.Chat.Id,
@@ -250,6 +309,7 @@ namespace Quotes286Bot
 
                     "/random - get a random quote\n" +
                     "/randomlist - get a list of random quotes\n" +
+                    "/randomlist (number) - get desired number of random quotes (limit 25)\n" +
                     "/findquotes - find quotes by author\n" +
                     "/favorite - open list of favorite quotes");
                 return;
@@ -261,7 +321,7 @@ namespace Quotes286Bot
             if (quotesByAuthor.ContainsKey(chatId))
             {
                 var quotes = quotesByAuthor[chatId];
-                int pageSize = 5;
+                int pageSize = 1;
                 int totalPages = (int)Math.Ceiling((double)quotes.Count / pageSize);
 
                 if (page < 1)
@@ -297,6 +357,7 @@ namespace Quotes286Bot
                 {
                     paginationButtons.Add(InlineKeyboardButton.WithCallbackData("◀", "previous_page_1"));
                 }
+
                 if (page < totalPages)
                 {
                     paginationButtons.Add(InlineKeyboardButton.WithCallbackData("▶", "next_page_1"));
@@ -315,7 +376,7 @@ namespace Quotes286Bot
             if (isFavoriteQuotes.ContainsKey(chatId))
             {
                 var favoriteQuotes = isFavoriteQuotes[chatId];
-                int pageSize = 5;
+                int pageSize = 1;
                 int totalPages = (int)Math.Ceiling((double)favoriteQuotes.Count / pageSize);
 
                 if (page < 1)
